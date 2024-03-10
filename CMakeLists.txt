@@ -6,5 +6,8 @@ project(
 
 set(CMAKE_CXX_STANDARD 20)
 
+include(CTest) # this automatically enables testing as well
+
 add_subdirectory(src)
 add_subdirectory(apps)
+add_subdirectory(test)
