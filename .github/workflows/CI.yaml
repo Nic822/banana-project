@@ -51,6 +51,28 @@ jobs:
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
+      # the current image contains an older version of clang which doesn't support all needed C++23 features yet
+      - name: Install latest clang
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: 17
+
+      # the current image contains an older version of gcc which doesn't support all needed C++23 features yet
+      - name: Install latest gcc
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: egor-tensin/setup-gcc@v1
+        with:
+          version: 13
+
+      # install dependencies of dependencies (based on CI failures)
+      - name: install dependencies
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev
+          sudo apt-get install -y libc++-17-dev libc++abi-17-dev # possible because the previous step has added the llvm apt repo 
+
       - name: Setup vcpkg (incl. caching)
         uses: lukka/run-vcpkg@v11
 
