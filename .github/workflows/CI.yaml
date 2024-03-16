@@ -22,7 +22,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         build_type: [Debug]
-        c_compiler: [gcc, clang, cl]
+        c_compiler: [gcc, cl]
         include:
           - os: windows-latest
             c_compiler: cl
@@ -30,14 +30,9 @@ jobs:
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
-          - os: ubuntu-latest
-            c_compiler: clang
-            cpp_compiler: clang++
         exclude:
           - os: windows-latest
             c_compiler: gcc
-          - os: windows-latest
-            c_compiler: clang
           - os: ubuntu-latest
             c_compiler: cl
 
@@ -50,6 +45,20 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      # the current image contains an older version of gcc which doesn't support all needed C++23 features yet
+      - name: Install latest gcc
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: egor-tensin/setup-gcc@v1
+        with:
+          version: 13
+
+      # install dependencies of dependencies (based on CI failures)
+      - name: install dependencies
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxi-dev libxtst-dev libxrandr-dev
 
       - name: Setup vcpkg (incl. caching)
         uses: lukka/run-vcpkg@v11

@@ -1,9 +1,12 @@
 {
   "name" : "banana-project",
   "version-string" : "1.0.0",
-  "builtin-baseline" : "0719a71389654b88d827501d88e37e58ea8cbd70",
+  "builtin-baseline" : "7f9f0e44db287e8e67c0e888141bfa200ab45121",
   "dependencies" : [ {
     "name" : "gtest",
     "version>=" : "1.14.0"
+  }, {
+    "name" : "opencv",
+    "version>=" : "4.8.0#1"
   } ]
 }
