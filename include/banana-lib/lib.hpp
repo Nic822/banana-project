@@ -10,10 +10,30 @@ namespace banana {
 
     /**
      * All errors which may occur during analysis of the image.
+     *
+     * Note that this is a class wrapping an enum (instead of an `enum class`) to be able to provide methods on the values.
      */
-    enum class AnalysisError {
-        /// the requested functionality has not yet been implemented. note: will be removed once implemented!
-        kNotYetImplementedError,
+    class AnalysisError {
+    public:
+        /**
+         * Implementation Detail. Use `AnalysisError` to access the enum constants and interact with them.
+         */
+        enum Value {
+            /// the requested functionality has not yet been implemented. note: will be removed once implemented!
+            kNotYetImplementedError,
+        };
+
+        AnalysisError() = default;
+        constexpr AnalysisError(Value const value) : value(value) { }
+        constexpr explicit operator Value() const { return value; }
+        explicit operator bool() const = delete;
+
+        [[nodiscard]]
+        auto ToString() const -> std::string;
+
+        explicit operator std::string() const;
+    private:
+        Value value;
     };
 
     /**

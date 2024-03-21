@@ -10,4 +10,6 @@ target_include_directories(
         PUBLIC "${OpenCV_INCLUDE_DIRS}"
 )
 
-target_link_libraries(banana-lib ${OpenCV_LIBS})
+target_link_libraries(banana-lib
+        PUBLIC ${OpenCV_LIBS}
+)

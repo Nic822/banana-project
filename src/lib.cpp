@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #include <banana-lib/lib.hpp>
 
 namespace banana {
@@ -29,5 +31,18 @@ namespace banana {
             .and_then([&image](std::list<AnalysisResult> const& analysis_result) -> std::expected<AnnotatedAnalysisResult, AnalysisError> {
                 return AnnotatedAnalysisResult{AnnotateImage(image, analysis_result), analysis_result};
             });
+    }
+
+    auto AnalysisError::ToString() const -> std::string {
+        switch(value) {
+            case kNotYetImplementedError:
+                return "not yet implemented!";
+            default:
+                throw std::runtime_error("unknown AnalysisError type!");
+        }
+    }
+
+    AnalysisError::operator std::string() const {
+        return this->ToString();
     }
 }
