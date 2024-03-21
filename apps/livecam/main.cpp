@@ -34,6 +34,7 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 }
 
 int main(int const argc, char const * const argv[]) {
+    banana::Analyzer const analyzer{};
     try {
         auto cap = GetVideoCaptureFromArgs(argc, argv);
         if(!cap.isOpened()) {
@@ -44,7 +45,7 @@ int main(int const argc, char const * const argv[]) {
         while (true) {
             cv::Mat frame;
             cap >> frame;
-            auto const analysisResult = banana::AnalyzeAndAnnotateImage(frame);
+            auto const analysisResult = analyzer.AnalyzeAndAnnotateImage(frame);
 
             if (analysisResult) {
                 ShowAnalysisResult(analysisResult.value());

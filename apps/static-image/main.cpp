@@ -32,11 +32,12 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 }
 
 int main(int const argc, char const * const argv[]) {
+    banana::Analyzer const analyzer{};
     try {
         auto const path = GetPathFromArgs(argc, argv);
         auto const img = cv::imread(path.string());
 
-        auto const analysisResult = banana::AnalyzeAndAnnotateImage(img);
+        auto const analysisResult = analyzer.AnalyzeAndAnnotateImage(img);
 
         if(analysisResult) {
             ShowAnalysisResult(analysisResult.value());
