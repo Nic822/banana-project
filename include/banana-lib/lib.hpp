@@ -8,6 +8,11 @@
 
 namespace banana {
 
+    /// Single contour around a detected object.
+    typedef std::vector<cv::Point> Contour;
+    /// List of multiple contours.
+    typedef std::vector<Contour> Contours;
+
     /**
      * All errors which may occur during analysis of the image.
      *
@@ -17,10 +22,12 @@ namespace banana {
     public:
         /**
          * Implementation Detail. Use `AnalysisError` to access the enum constants and interact with them.
+         *
+         * Ensure that you add any value listed here also to `AnalysisError::ToString`!
          */
         enum Value {
-            /// the requested functionality has not yet been implemented. note: will be removed once implemented!
-            kNotYetImplementedError,
+            /// The provided image is invalid (e.g. empty / no data).
+            kInvalidImage,
         };
 
         AnalysisError() = default;
@@ -40,18 +47,18 @@ namespace banana {
      * The analysis results for a banana which has been found in the image.
      */
     struct AnalysisResult {
-        // TODO: add attributes once we start analysing the image
+        /// Contour of the banana in the image.
+        Contour contour;
     };
 
+    /**
+     * The analysis results as well as an image annotated with them which can be used for visualisation.
+     */
     struct AnnotatedAnalysisResult {
-        /**
-         * A copy of the original image with annotations in it for visualisation.
-         */
+        /// A copy of the original image with annotations in it for visualisation.
         cv::Mat annotated_image;
 
-        /**
-         * The results for each banana which has been found. If no banana has been found this list is empty.
-         */
+        /// The results for each banana which has been found. If no banana has been found this list is empty.
         std::list<AnalysisResult> banana;
     };
 
@@ -78,6 +85,28 @@ namespace banana {
         auto AnalyzeAndAnnotateImage(cv::Mat const &image) const -> std::expected<AnnotatedAnalysisResult, AnalysisError>;
 
     private:
+        /** Color used to annotate the contours on the analyzed image. */
+        cv::Scalar const contour_annotation_color_{0, 255, 0};
+
+        /**
+         * Identify all bananas present in an image and return their contours.
+         *
+         * @param image the image containing bananas.
+         * @return a list of the contours of all identified bananas. may be empty if no bananas have been found.
+         */
+        [[nodiscard]]
+        auto FindBananaContours(cv::Mat const& image) const -> Contours;
+
+        /**
+         * Analyse the banana.
+         *
+         * @param image the image containing bananas.
+         * @param banana_contour the contour of the banana to be analysed
+         * @return
+         */
+        [[nodiscard]]
+        auto AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError>;
+
         /**
          * Annotate an image with the result from a previous analysis (the analysis must come from the same image).
          * This is meant for visualisation to users and is not guaranteed to produce stable results.
