@@ -5,9 +5,7 @@
 
 #include "banana-lib/lib.hpp"
 
-/**
- * Assert that two matrices are identical (same values  for all pixels).
- */
+/// Assert that two matrices are identical (same values  for all pixels).
 #define ASSERT_SAME_MAT(a,b) ASSERT_EQ(cv::Scalar(), cv::sum(a != b))
 
 TEST(GeneralBananaTestSuite, FailOnNonExistingImage) {
@@ -23,7 +21,7 @@ TEST(BananaContourFinderTestSuite, AnalyzeEmptyPicture) {
     auto const result = analyzer.AnalyzeImage(image);
     ASSERT_TRUE(result.has_value());
     auto const& results = result.value();
-    ASSERT_TRUE(results.empty());
+    ASSERT_EQ(0, results.size());
 }
 
 TEST(BananaContourFinderTestSuite, AnalyzeAndAnnotateEmptyPicture) {
@@ -32,7 +30,7 @@ TEST(BananaContourFinderTestSuite, AnalyzeAndAnnotateEmptyPicture) {
     auto const result = analyzer.AnalyzeAndAnnotateImage(image);
     ASSERT_TRUE(result.has_value());
     auto const& analysis_result = result.value();
-    ASSERT_TRUE(analysis_result.banana.empty());
+    ASSERT_EQ(0, analysis_result.banana.size());
     ASSERT_SAME_MAT(analysis_result.annotated_image, image);
 }
 

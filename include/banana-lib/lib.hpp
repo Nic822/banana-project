@@ -88,6 +88,9 @@ namespace banana {
         /// Color used to annotate the contours on the analyzed image.
         cv::Scalar const contour_annotation_color_{0, 255, 0};
 
+        /// Maximum score of `cv::matchShapes` which we still accept as a banana.
+        float match_max_score_ = 0.8f;
+
         /// Reference contour for the banana, used in filtering.
         Contour reference_contour_;
 
@@ -100,12 +103,12 @@ namespace banana {
         auto ColorFilter(cv::Mat const& image) const -> cv::Mat;
 
         /**
-         * Compares the input with a banana contour and only passes on those that are similar to it
-         * @param contours
-         * @return banana contour
+         * Checks whether the passed contour is - with a good likelihood - a banana.
+         * @param contour the contour which may or may not be a banana
+         * @return whether it is a banana
          */
         [[nodiscard]]
-        auto FilterContours(Contours const& contours) const -> Contours;
+        auto IsBananaContour(Contour const& contour) const -> bool;
 
         /**
          * Identify all bananas present in an image and return their contours.

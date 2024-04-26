@@ -82,16 +82,8 @@ namespace banana {
         return mask;
     }
 
-    auto Analyzer::FilterContours(Contours const& contours) const -> Contours {
-        Contours filtered_contours;
-        auto const match_max_score_ = 0.8;
-        for (auto& contour : contours) {
-            auto const match_score = cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0);
-            if (match_score < match_max_score_) {
-                filtered_contours.push_back(contour);
-            }
-        }
-        return filtered_contours;
+    auto Analyzer::IsBananaContour(Contour const& contour) const -> bool {
+        return cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0) > match_max_score_;
     }
 
     auto Analyzer::FindBananaContours(cv::Mat const& image) const -> Contours {
@@ -104,13 +96,17 @@ namespace banana {
         SHOW_DEBUG_IMAGE(filtered_image, "morph");
 
         // Smooth the image
-        cv::medianBlur(filtered_image, filtered_image, 37);    // 41
+        cv::medianBlur(filtered_image, filtered_image, 37); // TODO: test again with 41
         SHOW_DEBUG_IMAGE(filtered_image, "blur");
 
         Contours contours;
         cv::findContours(filtered_image, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-        return FilterContours(contours);
+        std::erase_if(contours, [this](auto const& contour) -> auto {
+            return this->IsBananaContour(contour);
+        });
+
+        return contours;
     }
 
     auto Analyzer::AnalyzeBanana(const cv::Mat &image, const Contour &banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
