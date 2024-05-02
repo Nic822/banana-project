@@ -85,6 +85,14 @@ namespace banana {
 
         /// The length of the banana (in px).
         double length;
+
+        /**
+         * Ripeness as a percentage (100% = 1.0):
+         * * < 100%: not yet ripe
+         * * = 100%: ripe
+         * * > 100%: over-ripe
+         */
+        float ripeness;
     };
 
     /**
@@ -117,6 +125,22 @@ namespace banana {
             cv::Scalar const contour_annotation_color{0, 255, 0};
             /// Color used to annotate debug information on the analyzed image.
             cv::Scalar const helper_annotation_color{0, 0, 255};
+
+            /// Green color range used to filter the ripeness on the analyzed image.
+            cv::Scalar const green_lower_threshold_color{35, 50, 50};
+            cv::Scalar const green_upper_threshold_color{85, 255, 255};
+
+            /// Yellow color range used to filter the ripeness on the analyzed image.
+            cv::Scalar const yellow_lower_threshold_color{20, 100, 100};
+            cv::Scalar const yellow_upper_threshold_color{30, 255, 255};
+
+            /// Brown color range used to filter the ripeness on the analyzed image.
+            cv::Scalar const brown_lower_threshold_color{10, 100, 20};
+            cv::Scalar const brown_upper_threshold_color{20, 200, 100};
+
+            /// Color threshold used to filter the incoming colors on the analyzed image.
+            cv::Scalar const filter_lower_threshold_color{0, 41, 0};
+            cv::Scalar const filter_upper_threshold_color{177, 255, 255};
         };
 
         explicit Analyzer(Settings settings = {});
@@ -156,11 +180,14 @@ namespace banana {
 
         /**
          * filters the image for banana-related colors and returns a corresponding binary image.
+         *
          * @param image the image to be filtered
+         * @param low the lower bound which should be passed through - value must be in HSV!
+         * @param high the upper bound which should be passed through - value must be in HSV!
          * @return binary image, which colours the matching pixels white, otherwise black
          */
         [[nodiscard]]
-        auto ColorFilter(cv::Mat const& image) const -> cv::Mat;
+        auto ColorFilter(cv::Mat const& image, cv::Scalar low, cv::Scalar up) const -> cv::Mat;
 
         /**
          * Checks whether the passed contour is - with a good likelihood - a banana.
@@ -239,6 +266,26 @@ namespace banana {
          */
         [[nodiscard]]
         auto CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double;
+
+        /**
+         * Extract the masked part of an image for the defined contour.
+         * @param image the image from which the masked part should be extracted.
+         * @param contour the contour defining the mask.
+         * @return the masked image. all parts outside of the mask will be black.
+         */
+        [[nodiscard]]
+        auto GetMaskedImage(cv::Mat const& image, Contour const& contour) const -> cv::Mat;
+
+        /**
+         * Identify the ripeness of the banana.
+         * @param banana_image the image containing exactly the banana to be analysed (extracted using mask from original).
+         * @return Ripeness as a percentage (100% = 1.0):
+         * * < 100%: not yet ripe
+         * * = 100%: ripe
+         * * > 100%: over-ripe
+         */
+        [[nodiscard]]
+        auto IdentifyBananaRipeness(cv::Mat const& banana_image) const -> float;
 
         /**
          * Analyse the banana.
