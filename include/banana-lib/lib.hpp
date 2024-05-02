@@ -64,7 +64,7 @@ namespace banana {
 
     class Analyzer {
     public:
-        Analyzer() = default;
+        Analyzer();
 
         /**
          * Analyse an image for the presence of bananas and their properties.
@@ -85,8 +85,27 @@ namespace banana {
         auto AnalyzeAndAnnotateImage(cv::Mat const &image) const -> std::expected<AnnotatedAnalysisResult, AnalysisError>;
 
     private:
-        /** Color used to annotate the contours on the analyzed image. */
+        /// Color used to annotate the contours on the analyzed image.
         cv::Scalar const contour_annotation_color_{0, 255, 0};
+
+        /// Reference contour for the banana, used in filtering.
+        Contour reference_contour_;
+
+        /**
+         * filters the image for banana-related colors and returns a corresponding binary image.
+         * @param image the image to be filtered
+         * @return binary image, which colours the matching pixels white, otherwise black
+         */
+        [[nodiscard]]
+        auto ColorFilter(cv::Mat const& image) const -> cv::Mat;
+
+        /**
+         * Compares the input with a banana contour and only passes on those that are similar to it
+         * @param contours
+         * @return banana contour
+         */
+        [[nodiscard]]
+        auto FilterContours(Contours const& contours) const -> Contours;
 
         /**
          * Identify all bananas present in an image and return their contours.
@@ -118,6 +137,7 @@ namespace banana {
          */
         [[nodiscard]]
         auto AnnotateImage(cv::Mat const& image, std::list<AnalysisResult> const& analysis_result) const -> cv::Mat;
+
     };
 
 }
