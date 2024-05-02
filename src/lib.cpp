@@ -240,6 +240,22 @@ namespace banana {
         return length_in_px / this->settings_.pixels_per_meter;
     }
 
+    auto Analyzer::GetMaskedImage(const cv::Mat& image, const Contour& contour) const -> cv::Mat {
+        auto mask = cv::Mat{image.size(), CV_8UC3, cv::Scalar{255,255,255}};
+        cv::drawContours(mask, std::vector{{contour}}, -1, {0,0,0}, cv::FILLED);
+        SHOW_DEBUG_IMAGE(mask, "mask");
+        cv::Mat masked;
+        cv::bitwise_or(image, mask, masked);
+        SHOW_DEBUG_IMAGE(masked, "filtered image (masked area only)");
+        return masked;
+    }
+
+    auto Analyzer::IdentifyBananaRipeness(const cv::Mat& banana_image) const -> float {
+        // TODO: extract most dominant colours
+        // TODO: identify ripeness based on colours
+        return 0;
+    }
+
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
         auto const pca = this->GetPCA(banana_contour);
 
@@ -256,6 +272,8 @@ namespace banana {
                 .points_in_banana_coordsys = this->GetBananaCenterLine(rotated_contour, *coeffs),
         };
 
+        auto const banana_only = this->GetMaskedImage(image, banana_contour);
+
         return AnalysisResult{
                 .contour = banana_contour,
                 .center_line = center_line,
@@ -263,6 +281,7 @@ namespace banana {
                 .estimated_center = pca.center,
                 .mean_curvature = this->CalculateMeanCurvature(center_line),
                 .length = this->CalculateBananaLength(center_line),
+                .ripeness = this->IdentifyBananaRipeness(banana_only),
         };
     }
 

@@ -85,6 +85,14 @@ namespace banana {
 
         /// The length of the banana (in px).
         double length;
+
+        /**
+         * Ripeness as a percentage (100% = 1.0):
+         * * < 100%: not yet ripe
+         * * = 100%: ripe
+         * * > 100%: over-ripe
+         */
+        float ripeness;
     };
 
     /**
@@ -239,6 +247,26 @@ namespace banana {
          */
         [[nodiscard]]
         auto CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double;
+
+        /**
+         * Extract the masked part of an image for the defined contour.
+         * @param image the image from which the masked part should be extracted.
+         * @param contour the contour defining the mask.
+         * @return the masked image. all parts outside of the mask will be black.
+         */
+        [[nodiscard]]
+        auto GetMaskedImage(cv::Mat const& image, Contour const& contour) const -> cv::Mat;
+
+        /**
+         * Identify the ripeness of the banana.
+         * @param banana_image the image containing exactly the banana to be analysed (extracted using mask from original).
+         * @return Ripeness as a percentage (100% = 1.0):
+         * * < 100%: not yet ripe
+         * * = 100%: ripe
+         * * > 100%: over-ripe
+         */
+        [[nodiscard]]
+        auto IdentifyBananaRipeness(cv::Mat const& banana_image) const -> float;
 
         /**
          * Analyse the banana.
