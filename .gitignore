@@ -1,2 +1,3 @@
-.idea
-cmake-build*
+.idea/
+cmake-build*/
+.ipynb_checkpoints/
