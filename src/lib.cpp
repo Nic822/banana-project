@@ -129,7 +129,42 @@ namespace banana {
         return coeffs.transform_error([](auto const& _) -> auto {return AnalysisError::kPolynomialCalcFailure;});
     }
 
+    auto Analyzer::GetPCA(const Contour &banana_contour) const -> Analyzer::PCAResult {
+        // implementation adapted from https://docs.opencv.org/4.9.0/d1/dee/tutorial_introduction_to_pca.html
+
+        // Convert points to format expected by PCA
+        cv::Mat data_pts(static_cast<int>(banana_contour.size()), 2, CV_64F);
+        for (int i = 0; i < data_pts.rows; ++i) {
+            data_pts.at<double>(i, 0) = banana_contour[i].x;
+            data_pts.at<double>(i, 1) = banana_contour[i].y;
+        }
+        // Perform PCA analysis
+        cv::PCA pca{data_pts, {}, cv::PCA::DATA_AS_ROW};
+        // Store the center of the object
+        cv::Point center{static_cast<int>(pca.mean.at<double>(0, 0)),
+                         static_cast<int>(pca.mean.at<double>(0, 1))};
+        //Store the eigenvalues and eigenvectors
+        std::vector<cv::Point2d> eigen_vecs(2);
+        std::vector<double> eigen_vals(2);
+        for (int i = 0; i < 2; ++i) {
+            eigen_vecs[i] = cv::Point2d{pca.eigenvectors.at<double>(i, 0),
+                                        pca.eigenvectors.at<double>(i, 1)};
+            eigen_vals[i] = pca.eigenvalues.at<double>(i);
+        }
+
+        // The angle (in radians) is defined by the rotation of the x vector which corresponds to the primary direction as deduced by the PCA.
+        auto const angle = std::atan2(eigen_vecs[0].y, eigen_vecs[0].x);
+
+        return {
+            .center = center,
+            .eigen_vecs = eigen_vecs,
+            .eigen_vals = eigen_vals,
+            .angle = angle,
+        };
+    }
+
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
+        auto const pca = this->GetPCA(banana_contour);
         auto const coeffs = this->GetBananaCenterLineCoefficients(banana_contour);
         if (!coeffs) {
             return std::unexpected{coeffs.error()};
@@ -138,6 +173,8 @@ namespace banana {
         return AnalysisResult{
                 .contour = banana_contour,
                 .center_line_coefficients = *coeffs,
+                .rotation_angle = pca.angle,
+                .estimated_center = pca.center,
         };
     }
 
@@ -162,6 +199,16 @@ namespace banana {
         cv::polylines(draw_target, center_line_points2i, false, this->helper_annotation_color_, 10);
     }
 
+    void Analyzer::PlotPCAResult(cv::Mat& draw_target, AnalysisResult const& result) const {
+        auto const arrow_length = 50;
+        auto const& rotation = result.rotation_angle;
+        auto const& center = result.estimated_center;
+        auto const x_endpoint = center + cv::Point{static_cast<int>(arrow_length * std::cos(rotation)), static_cast<int>(arrow_length * std::sin(rotation))};
+        auto const y_endpoint = center + cv::Point{static_cast<int>(arrow_length * std::sin(rotation)),-static_cast<int>(arrow_length * std::cos(rotation))};
+        cv::arrowedLine(draw_target, center, x_endpoint, {0, 0, 255}, 5);
+        cv::arrowedLine(draw_target, center, y_endpoint, {255, 0, 0}, 5);
+    }
+
     auto Analyzer::AnnotateImage(cv::Mat const& image, std::list<AnalysisResult> const& analysis_result) const -> cv::Mat {
         auto annotated_image = cv::Mat{image};
 
@@ -170,6 +217,7 @@ namespace banana {
 
             if (this->verbose_annotations_) {
                 this->PlotCenterLine(annotated_image, result);
+                this->PlotPCAResult(annotated_image, result);
             }
         }
 

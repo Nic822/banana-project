@@ -2,6 +2,7 @@
 #include <format>
 #include <iostream>
 #include <stdexcept>
+#include <numbers>
 
 #include <opencv2/opencv.hpp>
 
@@ -30,6 +31,7 @@ void PrintAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result)
         auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line_coefficients;
         std::cout << "  Banana #" << n << ":" << std::endl;
         std::cout << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
+        std::cout << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
         std::cout << std::endl;
     }
 }
