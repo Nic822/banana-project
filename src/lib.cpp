@@ -212,10 +212,11 @@ namespace banana {
     auto Analyzer::AnnotateImage(cv::Mat const& image, std::list<AnalysisResult> const& analysis_result) const -> cv::Mat {
         auto annotated_image = cv::Mat{image};
 
-        for (auto const& result : analysis_result) {
+        for (auto const& [n, result] : std::ranges::enumerate_view(analysis_result)) {
             cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->contour_annotation_color_, 10);
 
             if (this->verbose_annotations_) {
+                cv::putText(annotated_image, std::to_string(n), result.estimated_center + cv::Point{35, -35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 2, this->helper_annotation_color_);
                 this->PlotCenterLine(annotated_image, result);
                 this->PlotPCAResult(annotated_image, result);
             }
