@@ -25,6 +25,13 @@ auto GetPathFromArgs(int const argc, char const * const argv[]) -> std::filesyst
 
 void PrintAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
     std::cout << "found " << analysis_result.banana.size() << " banana(s) in the picture" << std::endl;
+
+    for (auto const& [n, banana] : std::ranges::enumerate_view(analysis_result.banana)) {
+        auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line_coefficients;
+        std::cout << "  Banana #" << n << ":" << std::endl;
+        std::cout << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
+        std::cout << std::endl;
+    }
 }
 
 void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
@@ -36,7 +43,7 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 }
 
 int main(int const argc, char const * const argv[]) {
-    banana::Analyzer const analyzer{};
+    banana::Analyzer const analyzer{true};
     try {
         auto const path = GetPathFromArgs(argc, argv);
         auto const img = cv::imread(path.string());
