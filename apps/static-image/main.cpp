@@ -1,13 +1,13 @@
-#include <iostream>
 #include <filesystem>
-#include <stdexcept>
 #include <format>
+#include <iostream>
+#include <stdexcept>
 
 #include <opencv2/opencv.hpp>
 
 #include <banana-lib/lib.hpp>
 
-const cv::Size kWindowSize = {768, 512};
+const cv::Size kWindowSize{768, 512};
 
 [[nodiscard]]
 auto GetPathFromArgs(int const argc, char const * const argv[]) -> std::filesystem::path {
@@ -21,6 +21,10 @@ auto GetPathFromArgs(int const argc, char const * const argv[]) -> std::filesyst
     }
 
     return image_path;
+}
+
+void PrintAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
+    std::cout << "found " << analysis_result.banana.size() << " banana(s) in the picture" << std::endl;
 }
 
 void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
@@ -40,7 +44,8 @@ int main(int const argc, char const * const argv[]) {
         auto const analysisResult = analyzer.AnalyzeAndAnnotateImage(img);
 
         if(analysisResult) {
-            ShowAnalysisResult(analysisResult.value());
+            PrintAnalysisResult(*analysisResult);
+            ShowAnalysisResult(*analysisResult);
         } else {
             std::cerr << "failed to analyse the image: " << analysisResult.error().ToString() << std::endl;
             return 1;
