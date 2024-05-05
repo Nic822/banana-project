@@ -89,7 +89,7 @@ namespace banana {
         cv::Scalar const contour_annotation_color_{0, 255, 0};
 
         /// Maximum score of `cv::matchShapes` which we still accept as a banana.
-        float match_max_score_ = 0.8f;
+        float match_max_score_ = 0.6f;
 
         /// Reference contour for the banana, used in filtering.
         Contour reference_contour_;
