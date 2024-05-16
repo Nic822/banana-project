@@ -8,5 +8,8 @@
   }, {
     "name" : "opencv",
     "version>=" : "4.8.0#1"
+  }, {
+    "name" : "ceres",
+    "version>=" : "2.1.0#5"
   } ]
 }

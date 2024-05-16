@@ -1,13 +1,13 @@
-#include <iostream>
 #include <filesystem>
-#include <stdexcept>
 #include <format>
+#include <iostream>
+#include <stdexcept>
 
 #include <opencv2/opencv.hpp>
 
 #include <banana-lib/lib.hpp>
 
-const cv::Size kWindowSize = {768, 512};
+const cv::Size kWindowSize{768, 512};
 
 [[nodiscard]]
 auto GetVideoCaptureFromArgs(int const argc, char const * const argv[]) -> cv::VideoCapture {
@@ -26,6 +26,17 @@ auto GetVideoCaptureFromArgs(int const argc, char const * const argv[]) -> cv::V
     }
 }
 
+void PrintAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
+    std::cout << "found " << analysis_result.banana.size() << " banana(s) in the picture" << std::endl;
+
+    for (auto const& [n, banana] : std::ranges::enumerate_view(analysis_result.banana)) {
+        auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line_coefficients;
+        std::cout << "  Banana #" << n << ":" << std::endl;
+        std::cout << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
+        std::cout << std::endl;
+    }
+}
+
 void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
     std::string const windowName = "analysis result | press q to quit";
     cv::namedWindow(windowName, cv::WINDOW_KEEPRATIO);
@@ -34,7 +45,7 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 }
 
 int main(int const argc, char const * const argv[]) {
-    banana::Analyzer const analyzer{};
+    banana::Analyzer const analyzer{true};
     try {
         auto cap = GetVideoCaptureFromArgs(argc, argv);
         if(!cap.isOpened()) {
@@ -42,20 +53,32 @@ int main(int const argc, char const * const argv[]) {
             return 1;
         }
 
+        std::cout << R"(
+Available action keys:
+* press 'i' to show information on the bananas currently visible in the frame
+* press 'q' to quit
+)" << std::endl;
+
         while (true) {
             cv::Mat frame;
             cap >> frame;
             auto const analysisResult = analyzer.AnalyzeAndAnnotateImage(frame);
 
             if (analysisResult) {
-                ShowAnalysisResult(analysisResult.value());
+                ShowAnalysisResult(*analysisResult);
             } else {
                 std::cerr << "failed to analyse the image: " << analysisResult.error().ToString() << std::endl;
                 return 1;
             }
 
-            if (cv::pollKey() == 'q') {
-                return 0;
+            switch (cv::pollKey()) {
+                case 'i':
+                    PrintAnalysisResult(*analysisResult);
+                    break;
+                case 'q':
+                    return 0;
+                default:
+                    break;
             }
         }
     } catch (std::exception const& ex) {
