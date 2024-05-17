@@ -1,4 +1,5 @@
 #include <numbers>
+#include <numeric>
 #include <stdexcept>
 
 #include <polyfit/Polynomial2DFit.hpp>
@@ -45,6 +46,7 @@ namespace banana {
             o << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
             o << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
             o << "    Mean curvature = " << banana.mean_curvature << std::endl;
+            o << "    Length along center line = " << banana.length << "px" << std::endl;
             o << std::endl;
         }
 
@@ -218,6 +220,14 @@ namespace banana {
         return mean;
     }
 
+    auto Analyzer::CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double {
+        auto const Distance = [](auto const& p1, auto const& p2) -> auto {
+            return cv::norm(p1-p2);
+        };
+        auto const distances = center_line.points_in_banana_coordsys | std::views::pairwise_transform(Distance);
+        return std::accumulate(distances.cbegin(), distances.cend(), 0.0);
+    }
+
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
         auto const pca = this->GetPCA(banana_contour);
 
@@ -240,6 +250,7 @@ namespace banana {
                 .rotation_angle = pca.angle,
                 .estimated_center = pca.center,
                 .mean_curvature = this->CalculateMeanCurvature(center_line),
+                .length = this->CalculateBananaLength(center_line),
         };
     }
 

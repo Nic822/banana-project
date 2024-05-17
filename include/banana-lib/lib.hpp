@@ -81,6 +81,9 @@ namespace banana {
 
         /// The estimated mean curvature of the banana.
         double mean_curvature;
+
+        /// The length of the banana (in px).
+        double length;
     };
 
     /**
@@ -218,6 +221,15 @@ namespace banana {
          */
         [[nodiscard]]
         auto CalculateMeanCurvature(AnalysisResult::CenterLine const& center_line) const -> double;
+
+        /**
+         * Calculate the length of the banana along the center line.
+         *
+         * @param center_line the center line of the banana.
+         * @return the length of the banana.
+         */
+        [[nodiscard]]
+        auto CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double;
 
         /**
          * Analyse the banana.
