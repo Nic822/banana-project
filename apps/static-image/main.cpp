@@ -2,7 +2,6 @@
 #include <format>
 #include <iostream>
 #include <stdexcept>
-#include <numbers>
 
 #include <opencv2/opencv.hpp>
 
@@ -24,18 +23,6 @@ auto GetPathFromArgs(int const argc, char const * const argv[]) -> std::filesyst
     return image_path;
 }
 
-void PrintAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
-    std::cout << "found " << analysis_result.banana.size() << " banana(s) in the picture" << std::endl;
-
-    for (auto const& [n, banana] : std::ranges::enumerate_view(analysis_result.banana)) {
-        auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line_coefficients;
-        std::cout << "  Banana #" << n << ":" << std::endl;
-        std::cout << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
-        std::cout << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
-        std::cout << std::endl;
-    }
-}
-
 void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
     std::string const windowName = "analysis result | press q to quit";
     cv::namedWindow(windowName, cv::WINDOW_KEEPRATIO);
@@ -53,7 +40,7 @@ int main(int const argc, char const * const argv[]) {
         auto const analysisResult = analyzer.AnalyzeAndAnnotateImage(img);
 
         if(analysisResult) {
-            PrintAnalysisResult(*analysisResult);
+            std::cout << *analysisResult;
             ShowAnalysisResult(*analysisResult);
         } else {
             std::cerr << "failed to analyse the image: " << analysisResult.error().ToString() << std::endl;
