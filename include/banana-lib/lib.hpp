@@ -109,6 +109,9 @@ namespace banana {
             /// Maximum score of `cv::matchShapes` which we still accept as a banana.
             float const match_max_score{0.6f};
 
+            /// How long (in pixels) is a meter? This is the extrinsic calibration needed to calculate sizes.
+            double const pixels_per_meter;
+
             /// Color used to annotate the contours on the analyzed image.
             cv::Scalar const contour_annotation_color{0, 255, 0};
             /// Color used to annotate debug information on the analyzed image.
@@ -222,16 +225,16 @@ namespace banana {
          * Calculate the mean curvature of the center line.
          *
          * @param center_line the center line of the banana.
-         * @return the mean curvature of the center line.
+         * @return the mean curvature of the center line (in 1/m).
          */
         [[nodiscard]]
         auto CalculateMeanCurvature(AnalysisResult::CenterLine const& center_line) const -> double;
 
         /**
-         * Calculate the length of the banana along the center line.
+         * Calculate the length of the banana (in meters) along the center line.
          *
          * @param center_line the center line of the banana.
-         * @return the length of the banana.
+         * @return the length of the banana in meters.
          */
         [[nodiscard]]
         auto CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double;

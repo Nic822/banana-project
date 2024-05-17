@@ -37,6 +37,7 @@ int main(int const argc, char const * const argv[]) {
 
     banana::Analyzer const analyzer{{
         .verbose_annotations = true,
+        .pixels_per_meter = 12370, // measured 10cm = 1237 on "reference-measurement.jpg"
     }};
     try {
         auto const path = GetPathFromArgs(argc, argv);

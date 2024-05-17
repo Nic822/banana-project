@@ -46,8 +46,8 @@ namespace banana {
             o << "  Banana #" << n << ":" << std::endl;
             o << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
             o << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
-            o << "    Mean curvature = " << banana.mean_curvature << std::endl;
-            o << "    Length along center line = " << banana.length << "px" << std::endl;
+            o << "    Mean curvature = " << banana.mean_curvature << " 1/m" << std::endl;
+            o << "    Length along center line = " << banana.length << " m" << std::endl;
             o << std::endl;
         }
 
@@ -203,7 +203,13 @@ namespace banana {
         /// calculate the numerical first order derivative of a function
         auto const diff = std::views::pairwise_transform(std::minus{});
 
-        auto const y = center_line.points_in_banana_coordsys | std::views::transform(&cv::Point2d::y);
+        auto const px_to_m = [this](auto const& px) {
+            return px / this->settings_.pixels_per_meter;
+        };
+
+        auto const y = center_line.points_in_banana_coordsys
+                                                  | std::views::transform(&cv::Point2d::y)
+                                                  | std::views::transform(px_to_m);
         // calculate the first and second order numerical derivative of the center line
         auto const d1 = y | diff;
         auto const d2 = d1 | diff;
@@ -226,7 +232,8 @@ namespace banana {
             return cv::norm(p1-p2);
         };
         auto const distances = center_line.points_in_banana_coordsys | std::views::pairwise_transform(Distance);
-        return std::accumulate(distances.cbegin(), distances.cend(), 0.0);
+        auto const length_in_px = std::accumulate(distances.cbegin(), distances.cend(), 0.0);
+        return length_in_px / this->settings_.pixels_per_meter;
     }
 
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
