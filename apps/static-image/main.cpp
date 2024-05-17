@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/utils/logger.hpp>
 
 #include <banana-lib/lib.hpp>
 
@@ -32,6 +33,8 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 }
 
 int main(int const argc, char const * const argv[]) {
+    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
+
     banana::Analyzer const analyzer{true};
     try {
         auto const path = GetPathFromArgs(argc, argv);
