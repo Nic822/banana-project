@@ -20,3 +20,8 @@ To build this project you will need:
 * A modern C++ compiler supporting C++23
 * [CMake](https://cmake.org/) incl. CTest - this might well come included with your favourite IDE
 * [vcpkg](https://vcpkg.io/)
+
+## License
+As this is purely an educational project there's no need for others to include it in their commercial works.
+Accordingly, this is licensed under the **GNU General Public License v3.0 or later** (SPDX: `GPL-3.0-or-later`).
+See [LICENSE](LICENSE) for the full license text.
