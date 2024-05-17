@@ -2,6 +2,7 @@
 #define BANANA_PROJECT_LIB_HPP
 
 #include <expected>
+#include <iostream>
 #include <list>
 #include <utility>
 #include <vector>

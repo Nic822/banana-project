@@ -44,10 +44,11 @@ namespace banana {
         for (auto const& [n, banana] : std::ranges::enumerate_view(analysis_result.banana)) {
             auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line.coefficients;
             o << "  Banana #" << n << ":" << std::endl;
-            o << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
-            o << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
-            o << "    Mean curvature = " << banana.mean_curvature << " 1/m" << std::endl;
-            o << "    Length along center line = " << banana.length << " m" << std::endl;
+            o << "    " << std::format("y = {:.6f} {:+.6f} * x {:+.6f} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
+            o << "    Rotation = " << std::format("{:.2f}", banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
+            o << "    Mean curvature = " << std::format("{:.2f}", banana.mean_curvature / 100) << " 1/cm"
+              << " (corresponds to a circle with radius = " << std::format("{:.2f}", 1/banana.mean_curvature * 100) << " cm)" << std::endl;
+            o << "    Length along center line = " << std::format("{:.2f}", banana.length * 100) << " cm" << std::endl;
             o << std::endl;
         }
 
