@@ -1,5 +1,6 @@
 #include <numbers>
 #include <numeric>
+#include <ranges>
 #include <stdexcept>
 #include <utility>
 
@@ -201,31 +202,33 @@ namespace banana {
     }
 
     auto Analyzer::CalculateMeanCurvature(AnalysisResult::CenterLine const& center_line) const -> double {
-        /// calculate the numerical first order derivative of a function
-        auto const diff = std::views::pairwise_transform(std::minus{});
+        auto const& [coeff_0, coeff_1, coeff_2] = center_line.coefficients;
 
-        auto const px_to_m = [this](auto const& px) {
-            return px / this->settings_.pixels_per_meter;
+        auto const x = center_line.points_in_banana_coordsys
+                       | std::views::transform(&cv::Point2d::x);
+                       //| std::views::transform(px_to_m);
+
+        auto const calc_first_deriv = [coeff_1, coeff_2](auto const& x) -> auto {
+            return 2 * coeff_2 * x + coeff_1;
         };
 
-        auto const y = center_line.points_in_banana_coordsys
-                                                  | std::views::transform(&cv::Point2d::y)
-                                                  | std::views::transform(px_to_m);
-        // calculate the first and second order numerical derivative of the center line
-        auto const d1 = y | diff;
-        auto const d2 = d1 | diff;
+        /// y'(x) = 2ax + b
+        auto const d1 = x | std::views::transform(calc_first_deriv);
+        /// y''(x) = 2a = constant
+        auto const d2 = std::views::repeat(2 * coeff_2);
 
         auto const calc_curvature = [](auto const&& d) -> auto {
             auto const& [d1_, d2_] = d;
-            return std::abs(d2_) / std::sqrt(std::pow(1 + d1_*d1_, 3));
+            auto const c = std::abs(d2_) / std::sqrt(std::pow(1 + d1_*d1_, 3));
+            return c;
         };
 
-        // calculate the curvature of the center line at every point
-        auto const curvature = std::views::zip(d1, d2) | std::views::transform(calc_curvature);
+        // calculate the curvature of the center line at every point (in pixel)
+        auto const curvature = std::views::zip(d1, d2) | std::views::transform(calc_curvature) | std::ranges::to<std::vector>();
 
-        auto const mean = std::accumulate(curvature.cbegin(), curvature.cend(), 0.0);
+        auto const mean_in_px = std::accumulate(curvature.cbegin(), curvature.cend(), 0.0) / static_cast<double>(curvature.size());
 
-        return mean;
+        return mean_in_px * this->settings_.pixels_per_meter; // 1/px * px/m = 1/m
     }
 
     auto Analyzer::CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double {
