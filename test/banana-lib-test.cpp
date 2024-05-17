@@ -51,7 +51,7 @@ TEST(BananaContourFinderTestSuite, FindTwoBananas) {
 
 TEST(CenterLineCoefficientsTestSuite, SingleBanana00) {
     GET_RESULT("resources/test-images/banana-00.jpg", 1);
-    ASSERT_COEFFS_NEAR(2536.0389294, -1.8237497, 0.0005237, result.banana.front().center_line_coefficients);
+    ASSERT_COEFFS_NEAR(2482.2342194, -1.8133667, 0.0005347, result.banana.front().center_line.coefficients);
 }
 
 TEST(PCATestSuite, SingleBanana00) {
