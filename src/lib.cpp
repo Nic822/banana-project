@@ -44,6 +44,7 @@ namespace banana {
             o << "  Banana #" << n << ":" << std::endl;
             o << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
             o << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
+            o << "    Mean curvature = " << banana.mean_curvature << std::endl;
             o << std::endl;
         }
 
@@ -195,6 +196,28 @@ namespace banana {
         };
     }
 
+    auto Analyzer::CalculateMeanCurvature(AnalysisResult::CenterLine const& center_line) const -> double {
+        /// calculate the numerical first order derivative of a function
+        auto const diff = std::views::pairwise_transform(std::minus{});
+
+        auto const y = center_line.points_in_banana_coordsys | std::views::transform(&cv::Point2d::y);
+        // calculate the first and second order numerical derivative of the center line
+        auto const d1 = y | diff;
+        auto const d2 = d1 | diff;
+
+        auto const calc_curvature = [](auto const&& d) -> auto {
+            auto const& [d1_, d2_] = d;
+            return std::abs(d2_) / std::sqrt(std::pow(1 + d1_*d1_, 3));
+        };
+
+        // calculate the curvature of the center line at every point
+        auto const curvature = std::views::zip(d1, d2) | std::views::transform(calc_curvature);
+
+        auto const mean = std::accumulate(curvature.cbegin(), curvature.cend(), 0.0);
+
+        return mean;
+    }
+
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
         auto const pca = this->GetPCA(banana_contour);
 
@@ -206,16 +229,17 @@ namespace banana {
             return std::unexpected{coeffs.error()};
         }
 
-        auto const center_line_points_in_banana_coordsys = this->GetBananaCenterLine(rotated_contour, *coeffs);
+        AnalysisResult::CenterLine const center_line{
+                .coefficients = *coeffs,
+                .points_in_banana_coordsys = this->GetBananaCenterLine(rotated_contour, *coeffs),
+        };
 
         return AnalysisResult{
                 .contour = banana_contour,
-                .center_line{
-                    .coefficients = *coeffs,
-                    .points_in_banana_coordsys = center_line_points_in_banana_coordsys,
-                 },
+                .center_line = center_line,
                 .rotation_angle = pca.angle,
                 .estimated_center = pca.center,
+                .mean_curvature = this->CalculateMeanCurvature(center_line),
         };
     }
 

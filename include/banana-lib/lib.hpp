@@ -78,6 +78,9 @@ namespace banana {
 
         /// The estimated center of the banana shape. Note that this might actually lie outside of the banana itself due to the curvature!
         cv::Point estimated_center;
+
+        /// The estimated mean curvature of the banana.
+        double mean_curvature;
     };
 
     /**
@@ -206,6 +209,15 @@ namespace banana {
          */
         [[nodiscard]]
         auto GetPCA(Contour const& banana_contour) const -> PCAResult;
+
+        /**
+         * Calculate the mean curvature of the center line.
+         *
+         * @param center_line the center line of the banana.
+         * @return the mean curvature of the center line.
+         */
+        [[nodiscard]]
+        auto CalculateMeanCurvature(AnalysisResult::CenterLine const& center_line) const -> double;
 
         /**
          * Analyse the banana.
