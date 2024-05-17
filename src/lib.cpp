@@ -1,6 +1,7 @@
 #include <numbers>
 #include <numeric>
 #include <stdexcept>
+#include <utility>
 
 #include <polyfit/Polynomial2DFit.hpp>
 #include <banana-lib/lib.hpp>
@@ -53,7 +54,7 @@ namespace banana {
         return o;
     }
 
-    Analyzer::Analyzer(bool const verbose_annotations) : verbose_annotations_(verbose_annotations) {
+    Analyzer::Analyzer(Settings settings) : settings_(std::move(settings)) {
         cv::FileStorage fs("resources/reference-contours.yml", cv::FileStorage::READ);
         if (!fs.isOpened()) {
             throw std::runtime_error("couldn't read the reference contour!");
@@ -106,7 +107,7 @@ namespace banana {
     }
 
     auto Analyzer::IsBananaContour(Contour const& contour) const -> bool {
-        return cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0) > match_max_score_;
+        return cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0) > this->settings_.match_max_score;
     }
 
     auto Analyzer::FindBananaContours(cv::Mat const& image) const -> Contours {
@@ -263,7 +264,7 @@ namespace banana {
         // rotate the center line back so that it fits on the image
         auto const rotated_center_line = this->RotateContour(center_line_points2i, result.estimated_center, -result.rotation_angle);
 
-        cv::polylines(draw_target, rotated_center_line, false, this->helper_annotation_color_, 10);
+        cv::polylines(draw_target, rotated_center_line, false, this->settings_.helper_annotation_color, 10);
     }
 
     void Analyzer::PlotPCAResult(cv::Mat& draw_target, AnalysisResult const& result) const {
@@ -280,10 +281,10 @@ namespace banana {
         auto annotated_image = cv::Mat{image};
 
         for (auto const& [n, result] : std::ranges::enumerate_view(analysis_result)) {
-            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->contour_annotation_color_, 10);
+            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->settings_.contour_annotation_color, 10);
 
-            if (this->verbose_annotations_) {
-                cv::putText(annotated_image, std::to_string(n), result.estimated_center + cv::Point{35, -35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 2, this->helper_annotation_color_);
+            if (this->settings_.verbose_annotations) {
+                cv::putText(annotated_image, std::to_string(n), result.estimated_center + cv::Point{35, -35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 2, this->settings_.helper_annotation_color);
                 this->PlotCenterLine(annotated_image, result);
                 this->PlotPCAResult(annotated_image, result);
             }
@@ -291,4 +292,5 @@ namespace banana {
 
         return annotated_image;
     }
+
 }

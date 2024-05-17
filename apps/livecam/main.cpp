@@ -37,7 +37,9 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 int main(int const argc, char const * const argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
-    banana::Analyzer const analyzer{true};
+    banana::Analyzer const analyzer{{
+        .verbose_annotations = true,
+    }};
     try {
         auto cap = GetVideoCaptureFromArgs(argc, argv);
         if(!cap.isOpened()) {

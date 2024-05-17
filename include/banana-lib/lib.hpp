@@ -102,7 +102,20 @@ namespace banana {
 
     class Analyzer {
     public:
-        explicit Analyzer(bool verbose_annotations = false);
+        struct Settings {
+            /// Whether verbose annotations should be used when annotating the image. If enabled more information will be written on the image.
+            bool const verbose_annotations{false};
+
+            /// Maximum score of `cv::matchShapes` which we still accept as a banana.
+            float const match_max_score{0.6f};
+
+            /// Color used to annotate the contours on the analyzed image.
+            cv::Scalar const contour_annotation_color{0, 255, 0};
+            /// Color used to annotate debug information on the analyzed image.
+            cv::Scalar const helper_annotation_color{0, 0, 255};
+        };
+
+        explicit Analyzer(Settings settings = {});
 
         /**
          * Analyse an image for the presence of bananas and their properties.
@@ -123,14 +136,6 @@ namespace banana {
         auto AnalyzeAndAnnotateImage(cv::Mat const& image) const -> std::expected<AnnotatedAnalysisResult, AnalysisError>;
 
     private:
-        /// Whether verbose annotations should be used when annotating the image. If enabled more information will be written on the image.
-        bool verbose_annotations_;
-
-        /// Color used to annotate the contours on the analyzed image.
-        cv::Scalar const contour_annotation_color_{0, 255, 0};
-        /// Color used to annotate debug information on the analyzed image.
-        cv::Scalar const helper_annotation_color_{0, 0, 255};
-
         /// Internal structure to store the results of `GetPCA` for further processing in a convenient way.
         struct PCAResult {
             cv::Point center;
@@ -139,8 +144,8 @@ namespace banana {
             double angle;
         };
 
-        /// Maximum score of `cv::matchShapes` which we still accept as a banana.
-        float match_max_score_ = 0.6f;
+        /// All externally configurable settings used by the analyzer.
+        Settings const settings_;
 
         /// Reference contour for the banana, used in filtering.
         Contour reference_contour_;
