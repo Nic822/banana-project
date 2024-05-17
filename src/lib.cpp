@@ -129,18 +129,20 @@ namespace banana {
         return contours;
     }
 
-    auto Analyzer::GetBananaCenterLineCoefficients(Contour const& banana_contour) const -> std::expected<std::tuple<double, double, double>, AnalysisError> {
+    auto Analyzer::GetBananaCenterLineCoefficients(Contour const& banana_contour, PCAResult const& pca_result) const -> std::expected<std::tuple<double, double, double>, AnalysisError> {
+        // rotate the contour so that it's horizontal
+        auto const rotated_contour = this->RotateContour(banana_contour, pca_result.center, pca_result.angle);
+
         auto const to_std_pair_fn = [](auto const& p) -> std::pair<double, double> { return {p.x, p.y}; };
-        auto const coeffs = polyfit::Fit2DPolynomial(banana_contour | std::views::transform(to_std_pair_fn));
-#ifdef SHOW_DEBUG_INFO
-        if (coeffs) {
-            std::cout << std::format("y = {} + {} * x + {} * x^2", std::get<0>(*coeffs), std::get<1>(*coeffs),
-                                     std::get<2>(*coeffs)) << std::endl;
-        } else {
-            std::cerr << "couldn't find a solution!" << std::endl;
-        }
-#endif
+        auto const coeffs = polyfit::Fit2DPolynomial(rotated_contour | std::views::transform(to_std_pair_fn));
         return coeffs.transform_error([](auto const& _) -> auto {return AnalysisError::kPolynomialCalcFailure;});
+    }
+
+    auto Analyzer::RotateContour(Contour const& contour, cv::Point const& center, double const angle) const -> Contour {
+        auto const rotation_matrix = cv::getRotationMatrix2D(center, angle * 180 / std::numbers::pi, 1);
+        Contour rotated_contour{contour.size()};
+        cv::transform(contour, rotated_contour, rotation_matrix);
+        return rotated_contour;
     }
 
     auto Analyzer::GetPCA(const Contour &banana_contour) const -> Analyzer::PCAResult {
@@ -179,7 +181,7 @@ namespace banana {
 
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
         auto const pca = this->GetPCA(banana_contour);
-        auto const coeffs = this->GetBananaCenterLineCoefficients(banana_contour);
+        auto const coeffs = this->GetBananaCenterLineCoefficients(banana_contour, pca);
         if (!coeffs) {
             return std::unexpected{coeffs.error()};
         }
@@ -193,9 +195,15 @@ namespace banana {
     }
 
     void Analyzer::PlotCenterLine(cv::Mat& draw_target, AnalysisResult const& result) const {
+        // note that the coefficients for the center line are given in relation to the bananas main axis.
+        // accordingly we have to rotate the resulting line to plot it over the banana in the image.
+
+        // rotate the contour so that it's horizontal (needed to calculate the x-axis points for plotting in the coordinate system of the banana).
+        auto const rotated_contour = this->RotateContour(result.contour, result.estimated_center, result.rotation_angle);
+
         auto const& [coeff_0, coeff_1, coeff_2] = result.center_line_coefficients;
 
-        auto const minmax_x = std::ranges::minmax(result.contour | std::views::transform(&cv::Point::x));
+        auto const minmax_x = std::ranges::minmax(rotated_contour | std::views::transform(&cv::Point::x));
 
         /// Calculate a Point2d for the [x,y] coords based on the provided polynomial and x-values.
         auto const calc_xy = [&coeff_0, &coeff_1, &coeff_2](auto const&& x) -> cv::Point2d {
@@ -210,7 +218,10 @@ namespace banana {
         auto const center_line_points = std::views::iota(start, end) | std::views::transform(calc_xy);
         auto const center_line_points2i = center_line_points | std::views::transform(to_point2i) | std::ranges::to<std::vector>();
 
-        cv::polylines(draw_target, center_line_points2i, false, this->helper_annotation_color_, 10);
+        // rotate the center line back so that it fits on the image
+        auto const rotated_center_line = this->RotateContour(center_line_points2i, result.estimated_center, -result.rotation_angle);
+
+        cv::polylines(draw_target, rotated_center_line, false, this->helper_annotation_color_, 10);
     }
 
     void Analyzer::PlotPCAResult(cv::Mat& draw_target, AnalysisResult const& result) const {

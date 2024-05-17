@@ -55,6 +55,7 @@ namespace banana {
         Contour contour;
         /**
          * The coefficients a0, a1 and a2 of the two-dimensional polynomial describing the center line of the banana.
+         * Important: note that this is given along the primary axis of the banana and not in relation to the x-axis of the image.
          *
          * The center line is defined approximately by the method $y = a0 + a1 * x + a2 * x^2$.
          */
@@ -150,13 +151,28 @@ namespace banana {
         auto FindBananaContours(cv::Mat const& image) const -> Contours;
 
         /**
-         * Calculate the coefficients of the two-dimensional polynomial describing the center line of the banana.
+         * Calculate the coefficients of the two-dimensional polynomial describing the center line.
+         * Important: note that this is given along the primary axis of the banana and not in relation to the x-axis of the image.
          *
          * @param banana_contour the contour of the banana to be analysed
+         * @param pca_result the result from the PCA analysis
          * @return the coefficients of the two-dimensional polynomial describing the center line of the banana.
          */
         [[nodiscard]]
-        auto GetBananaCenterLineCoefficients(Contour const& banana_contour) const -> std::expected<std::tuple<double, double, double>, AnalysisError>;
+        auto GetBananaCenterLineCoefficients(Contour const& banana_contour, PCAResult const& pca_result) const -> std::expected<std::tuple<double, double, double>, AnalysisError>;
+
+        /**
+         * Rotate a contour by the defined angle around the specified point.
+         *
+         * @param contour the contour to be rotated
+         * @param center the center around which the contour is to be rotated
+         * @param angle the angle in radians by which it should be rotated
+         * @return the rotated contour
+         * @see cv::getRotationMatrix2D
+         * @see cv::transform
+         */
+        [[nodiscard]]
+        auto RotateContour(Contour const& contour, cv::Point const& center, double const angle) const -> Contour;
 
         /**
          * Calculate the PCA of the provided contour. This yields information about the center and rotation of the shape.
