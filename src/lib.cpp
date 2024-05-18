@@ -1,3 +1,4 @@
+#include <numbers>
 #include <stdexcept>
 
 #include <polyfit/Polynomial2DFit.hpp>
@@ -34,6 +35,19 @@ namespace banana {
 
     AnalysisError::operator std::string() const {
         return this->ToString();
+    }
+
+    std::ostream& operator << (std::ostream& o, AnnotatedAnalysisResult const& analysis_result) {
+        o << "found " << analysis_result.banana.size() << " banana(s) in the picture" << std::endl;
+        for (auto const& [n, banana] : std::ranges::enumerate_view(analysis_result.banana)) {
+            auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line_coefficients;
+            o << "  Banana #" << n << ":" << std::endl;
+            o << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
+            o << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
+            o << std::endl;
+        }
+
+        return o;
     }
 
     Analyzer::Analyzer(bool const verbose_annotations) : verbose_annotations_(verbose_annotations) {

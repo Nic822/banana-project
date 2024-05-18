@@ -76,6 +76,9 @@ namespace banana {
         std::list<AnalysisResult> banana;
     };
 
+    /// Print detailed information about the result to an output stream.
+    std::ostream& operator << (std::ostream& o, AnnotatedAnalysisResult const& analysis_result);
+
     class Analyzer {
     public:
         explicit Analyzer(bool verbose_annotations = false);

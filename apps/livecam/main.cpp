@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/utils/logger.hpp>
 
 #include <banana-lib/lib.hpp>
 
@@ -26,17 +27,6 @@ auto GetVideoCaptureFromArgs(int const argc, char const * const argv[]) -> cv::V
     }
 }
 
-void PrintAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
-    std::cout << "found " << analysis_result.banana.size() << " banana(s) in the picture" << std::endl;
-
-    for (auto const& [n, banana] : std::ranges::enumerate_view(analysis_result.banana)) {
-        auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line_coefficients;
-        std::cout << "  Banana #" << n << ":" << std::endl;
-        std::cout << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
-        std::cout << std::endl;
-    }
-}
-
 void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) {
     std::string const windowName = "analysis result | press q to quit";
     cv::namedWindow(windowName, cv::WINDOW_KEEPRATIO);
@@ -45,6 +35,8 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 }
 
 int main(int const argc, char const * const argv[]) {
+    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
+
     banana::Analyzer const analyzer{true};
     try {
         auto cap = GetVideoCaptureFromArgs(argc, argv);
@@ -73,7 +65,7 @@ Available action keys:
 
             switch (cv::pollKey()) {
                 case 'i':
-                    PrintAnalysisResult(*analysisResult);
+                    std::cout << *analysisResult;
                     break;
                 case 'q':
                     return 0;
