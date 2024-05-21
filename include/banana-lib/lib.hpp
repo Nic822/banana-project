@@ -2,6 +2,7 @@
 #define BANANA_PROJECT_LIB_HPP
 
 #include <expected>
+#include <iostream>
 #include <list>
 #include <utility>
 #include <vector>
@@ -14,6 +15,8 @@ namespace banana {
     typedef std::vector<cv::Point> Contour;
     /// List of multiple contours.
     typedef std::vector<Contour> Contours;
+    /// The coefficients a0, a1 and a2 of the two-dimensional polynomial $y = a0 + a1 * x + a2 * x^2$.
+    typedef std::tuple<double, double, double> Polynomial2DCoefficients;
 
     /**
      * All errors which may occur during analysis of the image.
@@ -51,18 +54,37 @@ namespace banana {
      * The analysis results for a banana which has been found in the image.
      */
     struct AnalysisResult {
+        struct CenterLine {
+            /**
+             * The coefficients a0, a1 and a2 of the two-dimensional polynomial describing the center line of the banana.
+             * Important: note that this is given along the primary axis of the banana and not in relation to the x-axis of the image.
+             *
+             * The center line is defined approximately by the method $y = a0 + a1 * x + a2 * x^2$.
+             */
+            Polynomial2DCoefficients coefficients;
+
+            /**
+             * The points along the center line inside of the banana contour (rotated, banana coordinate system).
+             */
+            std::vector<cv::Point2d> points_in_banana_coordsys;
+        };
+
         /// Contour of the banana in the image.
         Contour contour;
-        /**
-         * The coefficients a0, a1 and a2 of the two-dimensional polynomial describing the center line of the banana.
-         *
-         * The center line is defined approximately by the method $y = a0 + a1 * x + a2 * x^2$.
-         */
-        std::tuple<double, double, double> center_line_coefficients;
+
+        CenterLine center_line;
+
         /// The rotation angle of the banana, as seen from the x-axis. Given in radians.
         double rotation_angle;
+
         /// The estimated center of the banana shape. Note that this might actually lie outside of the banana itself due to the curvature!
         cv::Point estimated_center;
+
+        /// The estimated mean curvature of the banana.
+        double mean_curvature;
+
+        /// The length of the banana (in px).
+        double length;
     };
 
     /**
@@ -81,7 +103,23 @@ namespace banana {
 
     class Analyzer {
     public:
-        explicit Analyzer(bool verbose_annotations = false);
+        struct Settings {
+            /// Whether verbose annotations should be used when annotating the image. If enabled more information will be written on the image.
+            bool const verbose_annotations{false};
+
+            /// Maximum score of `cv::matchShapes` which we still accept as a banana.
+            float const match_max_score{0.6f};
+
+            /// How long (in pixels) is a meter? This is the extrinsic calibration needed to calculate sizes.
+            double const pixels_per_meter;
+
+            /// Color used to annotate the contours on the analyzed image.
+            cv::Scalar const contour_annotation_color{0, 255, 0};
+            /// Color used to annotate debug information on the analyzed image.
+            cv::Scalar const helper_annotation_color{0, 0, 255};
+        };
+
+        explicit Analyzer(Settings settings = {});
 
         /**
          * Analyse an image for the presence of bananas and their properties.
@@ -102,14 +140,6 @@ namespace banana {
         auto AnalyzeAndAnnotateImage(cv::Mat const& image) const -> std::expected<AnnotatedAnalysisResult, AnalysisError>;
 
     private:
-        /// Whether verbose annotations should be used when annotating the image. If enabled more information will be written on the image.
-        bool verbose_annotations_;
-
-        /// Color used to annotate the contours on the analyzed image.
-        cv::Scalar const contour_annotation_color_{0, 255, 0};
-        /// Color used to annotate debug information on the analyzed image.
-        cv::Scalar const helper_annotation_color_{0, 0, 255};
-
         /// Internal structure to store the results of `GetPCA` for further processing in a convenient way.
         struct PCAResult {
             cv::Point center;
@@ -118,8 +148,8 @@ namespace banana {
             double angle;
         };
 
-        /// Maximum score of `cv::matchShapes` which we still accept as a banana.
-        float match_max_score_ = 0.6f;
+        /// All externally configurable settings used by the analyzer.
+        Settings const settings_;
 
         /// Reference contour for the banana, used in filtering.
         Contour reference_contour_;
@@ -150,13 +180,38 @@ namespace banana {
         auto FindBananaContours(cv::Mat const& image) const -> Contours;
 
         /**
-         * Calculate the coefficients of the two-dimensional polynomial describing the center line of the banana.
+         * Calculate the coefficients of the two-dimensional polynomial describing the center line.
+         * Important: note that this is given along the primary axis of the banana and not in relation to the x-axis of the image.
          *
-         * @param banana_contour the contour of the banana to be analysed
+         * @param rotated_banana_contour the contour of the banana to be analysed - already rotated so that the x-axis is along the primary axis of the banana.
+         * @param pca_result the result from the PCA analysis
          * @return the coefficients of the two-dimensional polynomial describing the center line of the banana.
          */
         [[nodiscard]]
-        auto GetBananaCenterLineCoefficients(Contour const& banana_contour) const -> std::expected<std::tuple<double, double, double>, AnalysisError>;
+        auto GetBananaCenterLineCoefficients(Contour const& rotated_banana_contour) const -> std::expected<Polynomial2DCoefficients, AnalysisError>;
+
+        /**
+         * Calculate the center line of the banana in the coordinate system of the banana (x-axis along the primary axis of the banana).
+         *
+         * @param rotated_banana_contour the contour of the banana to be analysed - already rotated so that the x-axis is along the primary axis of the banana.
+         * @param coefficients the coefficients of the two-dimensional polynomial describing the center line of the banana
+         * @return a consecutive list of points with 1px spacing on the x-axis along the whole x-axis of the banana, describing the center line.
+         */
+        [[nodiscard]]
+        auto GetBananaCenterLine(Contour const& rotated_banana_contour, Polynomial2DCoefficients const& coefficients) const -> std::vector<cv::Point2d>;
+
+        /**
+         * Rotate a contour by the defined angle around the specified point.
+         *
+         * @param contour the contour to be rotated
+         * @param center the center around which the contour is to be rotated
+         * @param angle the angle in radians by which it should be rotated
+         * @return the rotated contour
+         * @see cv::getRotationMatrix2D
+         * @see cv::transform
+         */
+        [[nodiscard]]
+        auto RotateContour(Contour const& contour, cv::Point const& center, double const angle) const -> Contour;
 
         /**
          * Calculate the PCA of the provided contour. This yields information about the center and rotation of the shape.
@@ -166,6 +221,24 @@ namespace banana {
          */
         [[nodiscard]]
         auto GetPCA(Contour const& banana_contour) const -> PCAResult;
+
+        /**
+         * Calculate the mean curvature of the center line.
+         *
+         * @param center_line the center line of the banana.
+         * @return the mean curvature of the center line (in 1/m).
+         */
+        [[nodiscard]]
+        auto CalculateMeanCurvature(AnalysisResult::CenterLine const& center_line) const -> double;
+
+        /**
+         * Calculate the length of the banana (in meters) along the center line.
+         *
+         * @param center_line the center line of the banana.
+         * @return the length of the banana in meters.
+         */
+        [[nodiscard]]
+        auto CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double;
 
         /**
          * Analyse the banana.
@@ -178,9 +251,10 @@ namespace banana {
         auto AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError>;
 
         /**
-         * Plot the center line of the banana - as defined by the coefficients & contour - onto the provided draw target.
+         * Plot the center line of the banana onto the provided draw target.
          *
          * @param draw_target the image being annotated.
+         * @param center_line the center line along the whole x-axis of the banana in the coordinate system of the x-axis
          * @param result the analysis result for the banana to be drawn.
          */
         void PlotCenterLine(cv::Mat& draw_target, AnalysisResult const& result) const;

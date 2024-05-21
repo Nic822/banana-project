@@ -35,7 +35,10 @@ void ShowAnalysisResult(banana::AnnotatedAnalysisResult const& analysis_result) 
 int main(int const argc, char const * const argv[]) {
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
-    banana::Analyzer const analyzer{true};
+    banana::Analyzer const analyzer{{
+        .verbose_annotations = true,
+        .pixels_per_meter = 12370, // measured 10cm = 1237 on "reference-measurement.jpg"
+    }};
     try {
         auto const path = GetPathFromArgs(argc, argv);
         auto const img = cv::imread(path.string());

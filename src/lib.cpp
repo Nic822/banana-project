@@ -1,5 +1,8 @@
 #include <numbers>
+#include <numeric>
+#include <ranges>
 #include <stdexcept>
+#include <utility>
 
 #include <polyfit/Polynomial2DFit.hpp>
 #include <banana-lib/lib.hpp>
@@ -40,17 +43,20 @@ namespace banana {
     std::ostream& operator << (std::ostream& o, AnnotatedAnalysisResult const& analysis_result) {
         o << "found " << analysis_result.banana.size() << " banana(s) in the picture" << std::endl;
         for (auto const& [n, banana] : std::ranges::enumerate_view(analysis_result.banana)) {
-            auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line_coefficients;
+            auto const& [coeff_0, coeff_1, coeff_2] = banana.center_line.coefficients;
             o << "  Banana #" << n << ":" << std::endl;
-            o << "    " << std::format("y = {} + {} * x + {} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
-            o << "    Rotation = " << (banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
+            o << "    " << std::format("y = {:.6f} {:+.6f} * x {:+.6f} * x^2", coeff_0, coeff_1, coeff_2) << std::endl;
+            o << "    Rotation = " << std::format("{:.2f}", banana.rotation_angle * 180 / std::numbers::pi) << " degrees" << std::endl;
+            o << "    Mean curvature = " << std::format("{:.2f}", banana.mean_curvature / 100) << " 1/cm"
+              << " (corresponds to a circle with radius = " << std::format("{:.2f}", 1/banana.mean_curvature * 100) << " cm)" << std::endl;
+            o << "    Length along center line = " << std::format("{:.2f}", banana.length * 100) << " cm" << std::endl;
             o << std::endl;
         }
 
         return o;
     }
 
-    Analyzer::Analyzer(bool const verbose_annotations) : verbose_annotations_(verbose_annotations) {
+    Analyzer::Analyzer(Settings settings) : settings_(std::move(settings)) {
         cv::FileStorage fs("resources/reference-contours.yml", cv::FileStorage::READ);
         if (!fs.isOpened()) {
             throw std::runtime_error("couldn't read the reference contour!");
@@ -103,7 +109,7 @@ namespace banana {
     }
 
     auto Analyzer::IsBananaContour(Contour const& contour) const -> bool {
-        return cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0) > match_max_score_;
+        return cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0) > this->settings_.match_max_score;
     }
 
     auto Analyzer::FindBananaContours(cv::Mat const& image) const -> Contours {
@@ -129,18 +135,36 @@ namespace banana {
         return contours;
     }
 
-    auto Analyzer::GetBananaCenterLineCoefficients(Contour const& banana_contour) const -> std::expected<std::tuple<double, double, double>, AnalysisError> {
+    auto Analyzer::GetBananaCenterLineCoefficients(Contour const& rotated_banana_contour) const -> std::expected<Polynomial2DCoefficients, AnalysisError> {
         auto const to_std_pair_fn = [](auto const& p) -> std::pair<double, double> { return {p.x, p.y}; };
-        auto const coeffs = polyfit::Fit2DPolynomial(banana_contour | std::views::transform(to_std_pair_fn));
-#ifdef SHOW_DEBUG_INFO
-        if (coeffs) {
-            std::cout << std::format("y = {} + {} * x + {} * x^2", std::get<0>(*coeffs), std::get<1>(*coeffs),
-                                     std::get<2>(*coeffs)) << std::endl;
-        } else {
-            std::cerr << "couldn't find a solution!" << std::endl;
-        }
-#endif
+        auto const coeffs = polyfit::Fit2DPolynomial(rotated_banana_contour | std::views::transform(to_std_pair_fn));
         return coeffs.transform_error([](auto const& _) -> auto {return AnalysisError::kPolynomialCalcFailure;});
+    }
+
+    auto Analyzer::GetBananaCenterLine(Contour const& rotated_banana_contour, Polynomial2DCoefficients const& coefficients) const -> std::vector<cv::Point2d> {
+        // note that the coefficients for the center line are given in relation to the bananas main axis.
+        // accordingly we have to rotate the resulting line to plot it over the banana in the image.
+
+        auto const& [coeff_0, coeff_1, coeff_2] = coefficients;
+
+        auto const minmax_x = std::ranges::minmax(rotated_banana_contour | std::views::transform(&cv::Point::x));
+
+        /// Calculate a Point2d for the [x,y] coords based on the provided polynomial and x-values.
+        auto const calc_xy = [&coeff_0, &coeff_1, &coeff_2](auto const&& x) -> cv::Point2d {
+            auto const y = coeff_0 + coeff_1 * x + coeff_2 * x * x;
+            return {static_cast<double>(x), y};
+        };
+
+        return std::views::iota(minmax_x.min, minmax_x.max)
+                   | std::views::transform(calc_xy)
+                   | std::ranges::to<std::vector>();
+    }
+
+    auto Analyzer::RotateContour(Contour const& contour, cv::Point const& center, double const angle) const -> Contour {
+        auto const rotation_matrix = cv::getRotationMatrix2D(center, angle * 180 / std::numbers::pi, 1);
+        Contour rotated_contour{contour.size()};
+        cv::transform(contour, rotated_contour, rotation_matrix);
+        return rotated_contour;
     }
 
     auto Analyzer::GetPCA(const Contour &banana_contour) const -> Analyzer::PCAResult {
@@ -177,40 +201,81 @@ namespace banana {
         };
     }
 
+    auto Analyzer::CalculateMeanCurvature(AnalysisResult::CenterLine const& center_line) const -> double {
+        auto const& [coeff_0, coeff_1, coeff_2] = center_line.coefficients;
+
+        auto const x = center_line.points_in_banana_coordsys
+                       | std::views::transform(&cv::Point2d::x);
+                       //| std::views::transform(px_to_m);
+
+        auto const calc_first_deriv = [coeff_1, coeff_2](auto const& x) -> auto {
+            return 2 * coeff_2 * x + coeff_1;
+        };
+
+        /// y'(x) = 2ax + b
+        auto const d1 = x | std::views::transform(calc_first_deriv);
+        /// y''(x) = 2a = constant
+        auto const d2 = std::views::repeat(2 * coeff_2);
+
+        auto const calc_curvature = [](auto const&& d) -> auto {
+            auto const& [d1_, d2_] = d;
+            auto const c = std::abs(d2_) / std::sqrt(std::pow(1 + d1_*d1_, 3));
+            return c;
+        };
+
+        // calculate the curvature of the center line at every point (in pixel)
+        auto const curvature = std::views::zip(d1, d2) | std::views::transform(calc_curvature) | std::ranges::to<std::vector>();
+
+        auto const mean_in_px = std::accumulate(curvature.cbegin(), curvature.cend(), 0.0) / static_cast<double>(curvature.size());
+
+        return mean_in_px * this->settings_.pixels_per_meter; // 1/px * px/m = 1/m
+    }
+
+    auto Analyzer::CalculateBananaLength(AnalysisResult::CenterLine const& center_line) const -> double {
+        auto const Distance = [](auto const& p1, auto const& p2) -> auto {
+            return cv::norm(p1-p2);
+        };
+        auto const distances = center_line.points_in_banana_coordsys | std::views::pairwise_transform(Distance);
+        auto const length_in_px = std::accumulate(distances.cbegin(), distances.cend(), 0.0);
+        return length_in_px / this->settings_.pixels_per_meter;
+    }
+
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {
         auto const pca = this->GetPCA(banana_contour);
-        auto const coeffs = this->GetBananaCenterLineCoefficients(banana_contour);
+
+        // rotate the contour so that it's horizontal
+        auto const rotated_contour = this->RotateContour(banana_contour, pca.center, pca.angle);
+
+        auto const coeffs = this->GetBananaCenterLineCoefficients(rotated_contour);
         if (!coeffs) {
             return std::unexpected{coeffs.error()};
         }
 
+        AnalysisResult::CenterLine const center_line{
+                .coefficients = *coeffs,
+                .points_in_banana_coordsys = this->GetBananaCenterLine(rotated_contour, *coeffs),
+        };
+
         return AnalysisResult{
                 .contour = banana_contour,
-                .center_line_coefficients = *coeffs,
+                .center_line = center_line,
                 .rotation_angle = pca.angle,
                 .estimated_center = pca.center,
+                .mean_curvature = this->CalculateMeanCurvature(center_line),
+                .length = this->CalculateBananaLength(center_line),
         };
     }
 
     void Analyzer::PlotCenterLine(cv::Mat& draw_target, AnalysisResult const& result) const {
-        auto const& [coeff_0, coeff_1, coeff_2] = result.center_line_coefficients;
+        auto const to_point2i = [](auto const& p) -> cv::Point {return {static_cast<int>(p.x), static_cast<int>(p.y)};};
+        auto const center_line_points2i = result.center_line.points_in_banana_coordsys
+                                                                     | std::views::transform(to_point2i)
+                                                                     | std::ranges::to<std::vector>();
 
-        auto const minmax_x = std::ranges::minmax(result.contour | std::views::transform(&cv::Point::x));
+        // rotate the center line back so that it fits on the image
+        auto const rotated_center_line = this->RotateContour(center_line_points2i, result.estimated_center, -result.rotation_angle);
 
-        /// Calculate a Point2d for the [x,y] coords based on the provided polynomial and x-values.
-        auto const calc_xy = [&coeff_0, &coeff_1, &coeff_2](auto const&& x) -> cv::Point2d {
-            auto const y = coeff_0 + coeff_1 * x + coeff_2 * x * x;
-            return {static_cast<double>(x), y};
-        };
-        auto const to_point2i = [](auto const&& p) -> cv::Point {return {static_cast<int>(p.x), static_cast<int>(p.y)};};
-
-        auto const line_extension_length = 50; ///< amount of pixels by which the line should be extended on either side
-        auto const start = std::max(minmax_x.min - line_extension_length, 0);
-        auto const end = std::min(minmax_x.max + line_extension_length, draw_target.cols);
-        auto const center_line_points = std::views::iota(start, end) | std::views::transform(calc_xy);
-        auto const center_line_points2i = center_line_points | std::views::transform(to_point2i) | std::ranges::to<std::vector>();
-
-        cv::polylines(draw_target, center_line_points2i, false, this->helper_annotation_color_, 10);
+        cv::polylines(draw_target, rotated_center_line, false, this->settings_.helper_annotation_color, 10);
     }
 
     void Analyzer::PlotPCAResult(cv::Mat& draw_target, AnalysisResult const& result) const {
@@ -227,10 +292,10 @@ namespace banana {
         auto annotated_image = cv::Mat{image};
 
         for (auto const& [n, result] : std::ranges::enumerate_view(analysis_result)) {
-            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->contour_annotation_color_, 10);
+            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->settings_.contour_annotation_color, 10);
 
-            if (this->verbose_annotations_) {
-                cv::putText(annotated_image, std::to_string(n), result.estimated_center + cv::Point{35, -35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 2, this->helper_annotation_color_);
+            if (this->settings_.verbose_annotations) {
+                cv::putText(annotated_image, std::to_string(n), result.estimated_center + cv::Point{35, -35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 2, this->settings_.helper_annotation_color);
                 this->PlotCenterLine(annotated_image, result);
                 this->PlotPCAResult(annotated_image, result);
             }
@@ -238,4 +303,5 @@ namespace banana {
 
         return annotated_image;
     }
+
 }
