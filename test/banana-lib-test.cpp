@@ -11,7 +11,9 @@
 #define ASSERT_SAME_MAT(a,b) ASSERT_EQ(cv::Scalar(), cv::sum(a != b))
 
 #define GET_RESULT(path, num_expected)                            \
-    banana::Analyzer const analyzer;                              \
+    banana::Analyzer const analyzer{{                             \
+        .pixels_per_meter = 1,                                    \
+    }};                                                           \
     auto const image = cv::imread(path);                          \
     auto const result_ = analyzer.AnalyzeAndAnnotateImage(image); \
     ASSERT_TRUE(result_);                                         \
@@ -20,14 +22,18 @@
     do {} while(false)
 
 TEST(GeneralBananaTestSuite, FailOnNonExistingImage) {
-    banana::Analyzer const analyzer;
+    banana::Analyzer const analyzer{{
+        .pixels_per_meter = 1,
+    }};
     auto const image = cv::imread("non-existent-image.jpg");
     auto const result = analyzer.AnalyzeImage(image);
     ASSERT_FALSE(result);
 }
 
 TEST(BananaContourFinderTestSuite, AnalyzeEmptyPicture) {
-    banana::Analyzer const analyzer;
+    banana::Analyzer const analyzer{{
+        .pixels_per_meter = 1,
+    }};
     auto const image = cv::imread("resources/test-images/empty.jpg");
     auto const result = analyzer.AnalyzeImage(image);
     ASSERT_TRUE(result);
