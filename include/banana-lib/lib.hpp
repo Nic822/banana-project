@@ -143,7 +143,7 @@ namespace banana {
             cv::Scalar const filter_upper_threshold_color{177, 255, 255};
         };
 
-        explicit Analyzer(Settings settings = {});
+        explicit Analyzer(Settings settings);
 
         /**
          * Analyse an image for the presence of bananas and their properties.
