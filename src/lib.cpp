@@ -50,6 +50,7 @@ namespace banana {
             o << "    Mean curvature = " << std::format("{:.2f}", banana.mean_curvature / 100) << " 1/cm"
               << " (corresponds to a circle with radius = " << std::format("{:.2f}", 1/banana.mean_curvature * 100) << " cm)" << std::endl;
             o << "    Length along center line = " << std::format("{:.2f}", banana.length * 100) << " cm" << std::endl;
+            o << "    ripeness= " << std::format("{:.2f}", banana.ripeness * 100) << " %" << std::endl;
             o << std::endl;
         }
 
@@ -94,16 +95,12 @@ namespace banana {
             });
     }
 
-    auto Analyzer::ColorFilter(cv::Mat const& image) const -> cv::Mat {
+    auto Analyzer::ColorFilter(cv::Mat const& image, cv::Scalar low, cv::Scalar up) const -> cv::Mat {
         cv::Mat hsvImage;
         cv::cvtColor(image, hsvImage, cv::COLOR_BGR2HSV);
 
-        // Define the range for colors in the HSV color space
-        auto const lowerThreshold = cv::Scalar(0, 41, 0);
-        auto const upperThreshold = cv::Scalar(177, 255, 255);
-
         cv::Mat mask;
-        cv::inRange(hsvImage, lowerThreshold, upperThreshold, mask);
+        cv::inRange(hsvImage, low, up, mask);
 
         return mask;
     }
@@ -113,7 +110,7 @@ namespace banana {
     }
 
     auto Analyzer::FindBananaContours(cv::Mat const& image) const -> Contours {
-        auto filtered_image = ColorFilter(image);
+        auto filtered_image = ColorFilter(image, settings_.filter_lower_threshold_color, settings_.filter_upper_threshold_color);
         SHOW_DEBUG_IMAGE(filtered_image, "color filtered image");
 
         // Removing noise
@@ -122,7 +119,7 @@ namespace banana {
         SHOW_DEBUG_IMAGE(filtered_image, "morph");
 
         // Smooth the image
-        cv::medianBlur(filtered_image, filtered_image, 37); // TODO: test again with 41
+        cv::medianBlur(filtered_image, filtered_image, 41);
         SHOW_DEBUG_IMAGE(filtered_image, "blur");
 
         Contours contours;
@@ -251,9 +248,24 @@ namespace banana {
     }
 
     auto Analyzer::IdentifyBananaRipeness(const cv::Mat& banana_image) const -> float {
-        // TODO: extract most dominant colours
-        // TODO: identify ripeness based on colours
-        return 0;
+
+        /// Mask for green yellow brown colors
+        cv::Mat green_mask = ColorFilter(banana_image, settings_.green_lower_threshold_color, settings_.green_upper_threshold_color);
+        cv::Mat yellow_mask = ColorFilter(banana_image, settings_.yellow_lower_threshold_color, settings_.yellow_upper_threshold_color);
+        cv::Mat brown_mask = ColorFilter(banana_image, settings_.brown_lower_threshold_color, settings_.brown_upper_threshold_color);
+
+        /// Anzahl der Pixel in jedem Farbbereich berechnen
+        int green_Pixel_Count = cv::countNonZero(green_mask);
+        int yellow_Pixel_Count = cv::countNonZero(yellow_mask);
+        int brown_Pixel_Count = cv::countNonZero(brown_mask);
+
+        auto totalPixelCount = green_Pixel_Count + yellow_Pixel_Count + brown_Pixel_Count;
+        float green_share = static_cast<float>(green_Pixel_Count) / totalPixelCount;
+        float brown_share = static_cast<float>(brown_Pixel_Count) / totalPixelCount;
+        std::cout << "green: " << green_share << std::endl;
+        std::cout << "brown: " << brown_share << std::endl;
+
+        return green_share*2 + brown_share*2;
     }
 
     auto Analyzer::AnalyzeBanana(cv::Mat const& image, Contour const& banana_contour) const -> std::expected<AnalysisResult, AnalysisError> {

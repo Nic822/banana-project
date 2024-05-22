@@ -125,9 +125,25 @@ namespace banana {
             cv::Scalar const contour_annotation_color{0, 255, 0};
             /// Color used to annotate debug information on the analyzed image.
             cv::Scalar const helper_annotation_color{0, 0, 255};
+
+            /// Green color range used to filter the ripeness on the analyzed image.
+            cv::Scalar const green_lower_threshold_color{35, 50, 50};
+            cv::Scalar const green_upper_threshold_color{85, 255, 255};
+
+            /// Yellow color range used to filter the ripeness on the analyzed image.
+            cv::Scalar const yellow_lower_threshold_color{20, 100, 100};
+            cv::Scalar const yellow_upper_threshold_color{30, 255, 255};
+
+            /// Brown color range used to filter the ripeness on the analyzed image.
+            cv::Scalar const brown_lower_threshold_color{10, 100, 20};
+            cv::Scalar const brown_upper_threshold_color{20, 200, 100};
+
+            /// Color threshold used to filter the incoming colors on the analyzed image.
+            cv::Scalar const filter_lower_threshold_color{0, 41, 0};
+            cv::Scalar const filter_upper_threshold_color{177, 255, 255};
         };
 
-        explicit Analyzer(Settings settings = {});
+        explicit Analyzer(Settings settings);
 
         /**
          * Analyse an image for the presence of bananas and their properties.
@@ -168,7 +184,7 @@ namespace banana {
          * @return binary image, which colours the matching pixels white, otherwise black
          */
         [[nodiscard]]
-        auto ColorFilter(cv::Mat const& image) const -> cv::Mat;
+        auto ColorFilter(cv::Mat const& , cv::Scalar low, cv::Scalar up) const -> cv::Mat;
 
         /**
          * Checks whether the passed contour is - with a good likelihood - a banana.
