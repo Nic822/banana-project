@@ -118,6 +118,12 @@ namespace banana {
             /// Maximum score of `cv::matchShapes` which we still accept as a banana.
             float const match_max_score{0.6f};
 
+            /// Minimum area value of a banana (in px^2).
+            float const min_area{1e5f};
+
+            /// Maximum area value of a banana (in px^2).
+            float const max_area{1e7f};
+
             /// How long (in pixels) is a meter? This is the extrinsic calibration needed to calculate sizes.
             double const pixels_per_meter;
 
