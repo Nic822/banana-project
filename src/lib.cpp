@@ -106,7 +106,11 @@ namespace banana {
     }
 
     auto Analyzer::IsBananaContour(Contour const& contour) const -> bool {
-        return cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0) > this->settings_.match_max_score;
+        if (cv::matchShapes(contour, this->reference_contour_, cv::CONTOURS_MATCH_I1, 0.0) > this->settings_.match_max_score) {
+            return false;
+        }
+        auto const area = cv::contourArea(contour);
+        return settings_.min_area < area && area < settings_.max_area;
     }
 
     auto Analyzer::FindBananaContours(cv::Mat const& image) const -> Contours {
@@ -114,7 +118,7 @@ namespace banana {
         SHOW_DEBUG_IMAGE(filtered_image, "color filtered image");
 
         // Removing noise
-        auto const kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));
+        auto const kernel = cv::getStructuringElement(cv::MORPH_RECT, {5, 5});
         cv::morphologyEx(filtered_image, filtered_image, cv::MORPH_OPEN, kernel);
         SHOW_DEBUG_IMAGE(filtered_image, "morph");
 
@@ -126,7 +130,7 @@ namespace banana {
         cv::findContours(filtered_image, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
         std::erase_if(contours, [this](auto const& contour) -> auto {
-            return this->IsBananaContour(contour);
+            return !this->IsBananaContour(contour);
         });
 
         return contours;
@@ -304,7 +308,7 @@ namespace banana {
         // rotate the center line back so that it fits on the image
         auto const rotated_center_line = this->RotateContour(center_line_points2i, result.estimated_center, -result.rotation_angle);
 
-        cv::polylines(draw_target, rotated_center_line, false, this->settings_.helper_annotation_color, 10);
+        cv::polylines(draw_target, rotated_center_line, false, this->settings_.helper_annotation_color, 3);
     }
 
     void Analyzer::PlotPCAResult(cv::Mat& draw_target, AnalysisResult const& result) const {
@@ -321,7 +325,7 @@ namespace banana {
         auto annotated_image = cv::Mat{image};
 
         for (auto const& [n, result] : std::ranges::enumerate_view(analysis_result)) {
-            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->settings_.contour_annotation_color, 10);
+            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->settings_.contour_annotation_color, 3);
 
             if (this->settings_.verbose_annotations) {
                 cv::putText(annotated_image, std::to_string(n), result.estimated_center + cv::Point{35, -35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 2, this->settings_.helper_annotation_color);
