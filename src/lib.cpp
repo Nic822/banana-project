@@ -50,7 +50,7 @@ namespace banana {
             o << "    Mean curvature = " << std::format("{:.2f}", banana.mean_curvature / 100) << " 1/cm"
               << " (corresponds to a circle with radius = " << std::format("{:.2f}", 1/banana.mean_curvature * 100) << " cm)" << std::endl;
             o << "    Length along center line = " << std::format("{:.2f}", banana.length * 100) << " cm" << std::endl;
-            o << "    ripeness= " << std::format("{:.0f}", banana.ripeness * 100) << " %" << std::endl;
+            o << "    ripeness = " << std::format("{:.0f}", banana.ripeness * 100) << " %" << std::endl;
             o << std::endl;
         }
 
