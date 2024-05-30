@@ -308,7 +308,7 @@ namespace banana {
         // rotate the center line back so that it fits on the image
         auto const rotated_center_line = this->RotateContour(center_line_points2i, result.estimated_center, -result.rotation_angle);
 
-        cv::polylines(draw_target, rotated_center_line, false, this->settings_.helper_annotation_color, 10);
+        cv::polylines(draw_target, rotated_center_line, false, this->settings_.helper_annotation_color, 3);
     }
 
     void Analyzer::PlotPCAResult(cv::Mat& draw_target, AnalysisResult const& result) const {
@@ -325,7 +325,7 @@ namespace banana {
         auto annotated_image = cv::Mat{image};
 
         for (auto const& [n, result] : std::ranges::enumerate_view(analysis_result)) {
-            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->settings_.contour_annotation_color, 10);
+            cv::drawContours(annotated_image, std::vector{{result.contour}}, -1, this->settings_.contour_annotation_color, 3);
 
             if (this->settings_.verbose_annotations) {
                 cv::putText(annotated_image, std::to_string(n), result.estimated_center + cv::Point{35, -35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 2, this->settings_.helper_annotation_color);
